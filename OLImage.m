@@ -116,7 +116,14 @@ inline static BOOL isRetinaFilePath(NSString *path)
     if (CGImageSourceContainsAnimatedGif(imageSource)) {
         image = [[self alloc] initWithCGImageSource:imageSource scale:scale];
     } else {
-        image = [super imageWithData:data scale:scale];
+        if ([UIImage instancesRespondToSelector:@selector(imageWithData:scale:)]) {
+            image = [super imageWithData:data scale:scale];
+        } else {
+            UIImage *imageCG = [[UIImage alloc] initWithData:data];
+            image = [[UIImage alloc] initWithCGImage:[imageCG CGImage]
+                                               scale:scale
+                                         orientation:imageCG.imageOrientation];
+        }
     }
     
     if (imageSource) {
@@ -150,10 +157,13 @@ inline static BOOL isRetinaFilePath(NSString *path)
     if (CGImageSourceContainsAnimatedGif(imageSource)) {
         self = [self initWithCGImageSource:imageSource scale:scale];
     } else {
-        if (scale == 1.0f) {
-            self = [super initWithData:data];
-        } else {
+        if ([UIImage instancesRespondToSelector:@selector(initWithData:scale:)]) {
             self = [super initWithData:data scale:scale];
+        } else {
+            UIImage *image = [[UIImage alloc] initWithData:data];
+            self = [super initWithCGImage:[image CGImage]
+                                    scale:scale
+                              orientation:image.imageOrientation];
         }
     }
     
@@ -366,7 +376,7 @@ static inline CGImageRef OLCreateDecodedCGImageFromCGImage(CGImageRef imageRef)
         CFRetain(imageSource);
         _imageSource = imageSource;
         _frameCache = [NSCache new];
-        [_frameCache setCountLimit:10];
+        [_frameCache setCountLimit:20];
         _frameCount = 0;
         _scale = scale;
         [self updateCount];
@@ -413,7 +423,7 @@ static inline CGImageRef OLCreateDecodedCGImageFromCGImage(CGImageRef imageRef)
     self.frameCount = MAX(0, count);
     NSUInteger cacheLimit = self.frameCache.countLimit;
     if (self.frameCount > 0) {
-        cacheLimit = MIN(self.frameCount, 10);
+        cacheLimit = MIN(self.frameCount, 20);
     }
     [self.frameCache setCountLimit:cacheLimit];
 }
